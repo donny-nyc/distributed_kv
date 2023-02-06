@@ -207,6 +207,7 @@ int handle_request(hashmap *data_store, char *req, size_t req_len, char **res, s
     break;
   }
 
+  /*
   if(request->action == GET) {
 
     int r = get_value(data_store, request->url, res, res_len);
@@ -249,6 +250,7 @@ int handle_request(hashmap *data_store, char *req, size_t req_len, char **res, s
 
     *res_len = strlen(http_400_bad_request);
   }
+  */
 
   if(request && request->body)
     free(request->body);
