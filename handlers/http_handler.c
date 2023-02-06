@@ -6,14 +6,14 @@
 
 #include "../controllers/data_store_controller.h"
 
-char *http_response_str(unsigned int code, char *content_type, char *msg, char *bod) {
-  char *body;
-
-  char *format = "HTTP/2 %zu %s\n\
+char *format = "HTTP/2 %zu %s\n\
 content-length: %zu\n\
 content-type: %s\n\
 \n\
 %s\r\n";
+
+char *http_response_str(unsigned int code, char *content_type, char *msg, char *bod) {
+  char *body;
 
   asprintf(&body, format, code, msg, strlen(bod), content_type, bod);
 
@@ -183,6 +183,8 @@ http_request *parse_request(char *raw, size_t request_len) {
   return req;
 }
 
+char *dummy_res = "not found";
+
 int handle_request(hashmap *data_store, char *req, size_t req_len, char **res, size_t *res_len) {
   printf("handle request:\n");
   http_request *request = parse_request(req, req_len);
@@ -210,6 +212,8 @@ int handle_request(hashmap *data_store, char *req, size_t req_len, char **res, s
     int r = get_value(data_store, request->url, res, res_len);
 
     if(r < 0) {
+      free(*res);
+
       *res = http_response_str(404, "application/json", "NOT FOUND", "{\"message\": \"not found\"}");
       *res_len = strlen(*res);
 
@@ -220,30 +224,31 @@ int handle_request(hashmap *data_store, char *req, size_t req_len, char **res, s
 
     snprintf(resp_buffer, 10000, "HTTP/2 200 OK\ncontent-length: %zu\ncontent-type: text/html\n\n%s\r\n", strlen(*res), *res);
 
+    free(*res);
+
     *res = resp_buffer;
     *res_len = strlen(*res);
 
     printf("found (%zu): %s\n", *res_len, *res);
-    return r;
   } else if (request->action == POST) {
     printf("insert\n");
     int r = put_value(data_store, request->url, request->body, request->body_len);
 
+    if (r < 0) return r;
 
-    *res = http_201_created;
+    *res = calloc(strlen(http_201_created), sizeof(char));
+    strcpy(*res, http_201_created);
     *res_len = strlen(http_201_created);
 
     printf("created\n");
+  } else {
+    printf("bad request\n");
 
-    return 0;
+    *res = calloc(strlen(http_400_bad_request), sizeof(char));
+    strcpy(*res, http_400_bad_request);
+
+    *res_len = strlen(http_400_bad_request);
   }
-
-  printf("bad request\n");
-
-  *res = calloc(strlen(http_400_bad_request), sizeof(char));
-  strcpy(*res, http_400_bad_request);
-
-  *res_len = strlen(http_400_bad_request);
 
   if(request && request->body)
     free(request->body);

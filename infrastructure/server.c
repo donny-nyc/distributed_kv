@@ -59,9 +59,6 @@ void start_server(int socket_fd, hashmap *data_store) {
       }
       printf("read: %s\n", buffer);
 
-
-      /// parse_request(buffer, strlen(buffer));
-      
       char *response = 0;
       size_t response_len = 0;
 
@@ -78,7 +75,6 @@ void start_server(int socket_fd, hashmap *data_store) {
 
       printf("close new fd\n");
       close(new_fd);
-
   }
   
   perror(strerror(errno));

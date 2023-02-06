@@ -11,7 +11,6 @@ int get_value(hashmap *data_store, char *k, char **value_buffer, size_t *value_l
   strcpy(key.value, k);
   hash_entry *entry = fetch(data_store, &key);
 
-  free(key.value);
 
   printf("entry for %s\n", k);
   if(entry) {
@@ -25,6 +24,7 @@ int get_value(hashmap *data_store, char *k, char **value_buffer, size_t *value_l
   }
 
   printf("[getvalue] not found %s\n", key.value);
+  free(key.value);
 
   return -1;
 }
@@ -43,11 +43,16 @@ int put_value(hashmap *data_store, char *k, char *val, size_t val_len) {
   value.value = calloc(value.len, sizeof(char));
 
   printf("val len: %zu\n", value.len);
-  strcpy(value.value, val);
+
+
+  if(value.len > 0)
+    strcpy(value.value, val);
   printf("strcpy value\n");
 
   insert(data_store, &key, &value);
   printf("inserted\n");
+
+  free(key.value);
 
   return 0;
 }
