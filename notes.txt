@@ -1,0 +1,19 @@
+Read-Impose-Write-Consult-Majority
+
+
+==  Mapping with key collisions ==
+
+_hash IDX_
+[0]
+[1] --> [{keyA, valueA}, {keyB, valueB}]
+...
+[n-1]
+[n]
+
+
+
+== Open Questions ==
+
+How to handle recovery?
+Chunked Files?
+How to replace existing key /value pairs (updates)
