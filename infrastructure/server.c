@@ -61,6 +61,7 @@ void *get_in_addr(struct sockaddr *sa) {
 
 typedef struct request_t {
   int fd;
+  SSL *ssl;
   hashmap *ds;
   int req_len;
   char buffer[10000];
@@ -76,7 +77,8 @@ void *handle_connection(void *args) {
     int res = handle_request(req->ds, req->buffer, req->req_len, &response, &response_len);
 
     if(res == 0 && response_len && response) {
-      if(send(req->fd, response, response_len - 1, 0) < 0) {
+      // if(send(req->fd, response, response_len - 1, 0) < 0) {
+      if(SSL_write(req->ssl, response, response_len - 1) < 0) {
         perror("send");
       }
 
@@ -125,6 +127,10 @@ void start_server(int socket_fd, hashmap *data_store) {
       continue;
     }
 
+    SSL *ssl;
+    ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, new_fd);
+
     inet_ntop(their_addr.ss_family,
         get_in_addr((struct sockaddr *)&their_addr),
         s, sizeof(s));
@@ -135,19 +141,25 @@ void start_server(int socket_fd, hashmap *data_store) {
 
     req->fd = new_fd;
     req->ds = data_store;
+    req->ssl = ssl;
 
     //char buffer[10000];
     //bzero(buffer, 10000);
+    
+    printf("read ssl\n");
+    if(SSL_accept(ssl) <= 0) {
+      ERR_print_errors_fp(stderr);
+    } else {
+      // req->req_len = read(new_fd, req->buffer, 10000);
+      req->req_len = SSL_read(ssl, req->buffer, 10000);
+      if(req->req_len < 0) {
+        perror(strerror(errno));
+        exit(1);
+      }
+      printf("read: %s\n", req->buffer);
 
-    printf("read from client\n");
-    req->req_len = read(new_fd, req->buffer, 10000);
-    if(req->req_len < 0) {
-      perror(strerror(errno));
-      exit(1);
+      push(&task_list, req);
     }
-    printf("read: %s\n", req->buffer);
-
-    push(&task_list, req);
 
     /*
     char *response = 0;
