@@ -6,6 +6,7 @@
 
 int get_value(hashmap *data_store, char *key, char **value_buffer, size_t *value_len);
 int put_value(hashmap *data_store, char *key, char *value, size_t value_len);
+int upsert_value(hashmap *data_store, char *key, char *value, size_t value_len);
 int delete_value(hashmap *data_store, char *key);
 
 #endif

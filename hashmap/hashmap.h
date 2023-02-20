@@ -3,6 +3,9 @@
 
 #include "hash_entry.h"
 
+#define E_ALREADY_EXISTS 2
+#define E_NOT_FOUND 3
+
 struct hash_map_t {
   size_t capacity;
   size_t len;
@@ -13,6 +16,8 @@ struct hash_map_t {
 typedef struct hash_map_t hashmap;
 
 int insert(hashmap *, hash_key *, hash_value *);
+int upsert(hashmap *, hash_key *, hash_value *);
+int delete_key(hashmap *, hash_key *);
 
 hash_entry *fetch(hashmap *, hash_key *);
 

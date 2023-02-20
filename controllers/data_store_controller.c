@@ -4,13 +4,49 @@
 
 #include "data_store_controller.h"
 
-int get_value(hashmap *data_store, char *k, char **value_buffer, size_t *value_len) {
-  hash_key key;
-  key.len = strlen(k);
-  key.value = calloc(key.len, sizeof(char));
-  strcpy(key.value, k);
-  hash_entry *entry = fetch(data_store, &key);
+hash_key *prepare_hash_key(char *k, size_t key_len) {
+  hash_key *key = calloc(1, sizeof(hash_key));
 
+  key->len = key_len;
+
+  key->value = calloc(key_len, sizeof(char));
+  strncpy(key->value, k, key_len);
+
+  return key;
+}
+
+void free_hash_key(hash_key *key) {
+  if(!key) return;
+
+  free(key->value);
+
+  free(key);
+}
+
+hash_value *prepare_hash_value(char *k, size_t value_len) {
+  hash_value *value = calloc(1, sizeof(hash_value));
+
+  value->value = calloc(value_len, sizeof(char));
+  strncpy(value->value, k, value_len);
+
+  value->len = value_len;
+
+  return value;
+}
+
+void free_hash_value(hash_value *value) {
+  if (!value) return;
+
+  free(value->value);
+
+  free(value);
+}
+
+int get_value(hashmap *data_store, char *k, char **value_buffer, size_t *value_len) {
+  hash_key *key = prepare_hash_key(k, strlen(k));
+  hash_entry *entry = fetch(data_store, key);
+
+  free_hash_key(key);
 
   printf("entry for %s\n", k);
   if(entry) {
@@ -23,36 +59,49 @@ int get_value(hashmap *data_store, char *k, char **value_buffer, size_t *value_l
     return 0;
   }
 
-  printf("[getvalue] not found %s\n", key.value);
-  free(key.value);
+  printf("[getvalue] not found %s\n", k);
 
-  return -1;
+  return E_NOT_FOUND;
 }
 
 int put_value(hashmap *data_store, char *k, char *val, size_t val_len) {
   printf("put_value\n");
-  hash_key key;
-  key.len = strlen(k);
-  key.value = calloc(key.len, sizeof(char));
+  hash_key *key = prepare_hash_key(k, strlen(k));
 
-  printf("strcpy key\n");
-  strcpy(key.value, k);
+  hash_value *value = prepare_hash_value(val, val_len); 
 
-  hash_value value;  
-  value.len = val_len;
-  value.value = calloc(value.len, sizeof(char));
-
-  printf("val len: %zu\n", value.len);
-
-
-  if(value.len > 0)
-    strcpy(value.value, val);
-  printf("strcpy value\n");
-
-  insert(data_store, &key, &value);
+  insert(data_store, key, value);
   printf("inserted\n");
 
-  free(key.value);
+  free_hash_key(key);
+  free_hash_value(value);
 
   return 0;
+}
+
+int upsert_value(hashmap *data_store, char *k, char *val, size_t val_len) {
+  printf("put_value\n");
+  hash_key *key = prepare_hash_key(k, strlen(k));
+
+  hash_value *value = prepare_hash_value(val, val_len); 
+
+  upsert(data_store, key, value);
+  printf("upserted\n");
+
+  free_hash_key(key);
+  free_hash_value(value);
+
+  return 0;
+}
+
+int delete_value(hashmap *data_store, char *k) {
+  printf("delete_value\n");
+
+  hash_key *key = prepare_hash_key(k, strlen(k));
+
+  int res = delete_key(data_store, key);
+
+  free_hash_key(key);
+
+  return res;
 }

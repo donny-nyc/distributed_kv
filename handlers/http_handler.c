@@ -6,18 +6,14 @@
 
 #include "../controllers/data_store_controller.h"
 
-char *format = "HTTP/2 %zu %s\n\
+char *format = "HTTP/1.1 %zu %s\n\
 content-length: %zu\n\
 content-type: %s\n\
 \n\
 %s\r\n";
 
-char *http_response_str(unsigned int code, char *content_type, char *msg, char *bod) {
-  char *body;
-
-  asprintf(&body, format, code, msg, strlen(bod), content_type, bod);
-
-  return body;
+void http_response_str(char **body, unsigned int code, char *content_type, char *msg, char *bod) {
+  asprintf(body, format, code, msg, strlen(bod), content_type, bod);
 }
 
 char *http_404_not_found = "HTTP/2 404 NOT FOUND\n\
@@ -163,21 +159,25 @@ http_request *parse_request(char *raw, size_t request_len) {
   }
 
   if(req->action == POST || req->action == PUT) {
+    char buf[10000];
+    bzero(buf, 10000);
     line = strtok_r(NULL, sep, &brkt);
 
-    if(line) {
+    while(line) {
       printf("post line: %s\n", line);
 
-      req->body_len = strlen(line);
 
-      printf("req->body_len: %zu\n", req->body_len);
-      req->body = calloc(req->body_len, sizeof(char));
-
-      strcpy(req->body, line);
-    } else {
+      strcpy(buf + strlen(buf), line);
+      printf("buf: %s\n", buf);
+      line = strtok_r(NULL, sep, &brkt);
+    } /*else {
       req->body_len = 0;
       req->body = NULL;
-    }
+    }*/
+    req->body_len = strlen(buf);
+    req->body = calloc(req->body_len, sizeof(char));
+
+    strcpy(req->body, buf);
   }
 
   return req;
@@ -207,31 +207,24 @@ int handle_request(hashmap *data_store, char *req, size_t req_len, char **res, s
     break;
   }
 
-  /*
   if(request->action == GET) {
-
     int r = get_value(data_store, request->url, res, res_len);
 
-    if(r < 0) {
-      free(*res);
+    free(*res);
+    if(r == E_NOT_FOUND) {
+      printf("Not Found: %s\n", request->url);
+      http_response_str(res, 404, "application/json", "NOT FOUND", "{\"message\": \"not found\"}");
+      *res_len = strlen(*res);
+    } else {
 
-      *res = http_response_str(404, "application/json", "NOT FOUND", "{\"message\": \"not found\"}");
+      http_response_str(res, 200, "text/html", "OK", *res);
+
       *res_len = strlen(*res);
 
-      return 0;
+      printf("found (%zu): %s\n", *res_len, *res);
     }
-
-    char *resp_buffer = calloc(10000, sizeof(char));
-
-    snprintf(resp_buffer, 10000, "HTTP/2 200 OK\ncontent-length: %zu\ncontent-type: text/html\n\n%s\r\n", strlen(*res), *res);
-
-    free(*res);
-
-    *res = resp_buffer;
-    *res_len = strlen(*res);
-
-    printf("found (%zu): %s\n", *res_len, *res);
   } else if (request->action == POST) {
+    // should only create if it doesn't already exist, otherwise error
     printf("insert\n");
     int r = put_value(data_store, request->url, request->body, request->body_len);
 
@@ -242,6 +235,29 @@ int handle_request(hashmap *data_store, char *req, size_t req_len, char **res, s
     *res_len = strlen(http_201_created);
 
     printf("created\n");
+  } else if (request->action == PUT) {
+    // should replace if exists, otherwise just create it 
+    printf("upsert\n");
+    int r = upsert_value(data_store, request->url, request->body, request->body_len);
+
+    if (r < 0) return r;
+
+    *res = calloc(strlen(http_201_created), sizeof(char));
+    strcpy(*res, http_201_created);
+    *res_len = strlen(http_201_created);
+  } else if (request->action == DELETE) {
+    printf("delete\n"); 
+
+    int r = delete_value(data_store, request->url);
+
+    if (r == E_NOT_FOUND) {
+      printf("Not Found: %s\n", request->url);
+      http_response_str(res, 404, "application/json", "NOT FOUND", "{\"message\": \"not found\"}");
+      *res_len = strlen(*res);
+    } else {
+      http_response_str(res, 204, "application/json", "DELETED", "");
+      *res_len = strlen(*res);
+    }
   } else {
     printf("bad request\n");
 
@@ -250,7 +266,8 @@ int handle_request(hashmap *data_store, char *req, size_t req_len, char **res, s
 
     *res_len = strlen(http_400_bad_request);
   }
-  */
+
+  printf("Response: %s\n", *res);
 
   if(request && request->body)
     free(request->body);
